@@ -1,4 +1,23 @@
-/* THEME TOKENS */
+/* =========================
+   THEME TOKENS (+ FALLBACK)
+   ========================= */
+:root{
+  --brand-red: 239 49 36;
+
+  --bg: 248 249 252;
+  --fg: 16 18 24;
+
+  --card: 255 255 255;
+  --border: 227 229 235;
+
+  --muted: 102 112 133;
+
+  --good: 22 163 74;
+  --warn: 245 158 11;
+
+  --shadow: 0 10px 30px rgba(10, 20, 40, 0.08);
+}
+
 html[data-theme="light"]{
   --brand-red: 239 49 36;
 
@@ -16,7 +35,7 @@ html[data-theme="light"]{
   --shadow: 0 10px 30px rgba(10, 20, 40, 0.08);
 }
 
-/* темная тема чуть светлее */
+/* мягкая тёмная тема */
 html[data-theme="dark"]{
   --brand-red: 239 49 36;
 
@@ -36,6 +55,7 @@ html[data-theme="dark"]{
 
 *{ box-sizing: border-box; }
 html, body{ height: 100%; }
+html{ color-scheme: light dark; }
 
 body{
   margin: 0;
@@ -43,14 +63,15 @@ body{
   color: rgb(var(--fg));
 
   background:
-    radial-gradient(900px 520px at 12% -10%, rgb(var(--brand-red) / 0.18), rgba(0,0,0,0) 60%),
-    radial-gradient(900px 520px at 92% 0%, rgb(56 189 248 / 0.10), rgba(0,0,0,0) 55%),
+    radial-gradient(900px 520px at 12% -10%, rgb(var(--brand-red) / 0.18), transparent 60%),
+    radial-gradient(900px 520px at 92% 0%, rgb(56 189 248 / 0.10), transparent 55%),
     linear-gradient(180deg, rgb(var(--bg)) 0%, rgb(var(--bg)) 100%);
   background-attachment: fixed;
 }
 
 a{ color: inherit; text-decoration: none; }
 button, input, textarea, select{ font-family: inherit; }
+input, textarea, select, option{ color: rgb(var(--fg)); }
 
 .container{ max-width: 1240px; margin: 0 auto; padding: 18px; }
 
@@ -63,7 +84,6 @@ button, input, textarea, select{ font-family: inherit; }
 .muted{ color: rgb(var(--muted)); }
 .mutedSmall{ color: rgb(var(--muted)); font-size: 12px; font-weight: 850; }
 
-/* ✅ ВАЖНО: правильный синтаксис с / alpha */
 .card{
   background: rgb(var(--card) / 0.98);
   border: 1px solid rgb(var(--border));
@@ -94,17 +114,33 @@ button, input, textarea, select{ font-family: inherit; }
 
 .btnGhost{ background: rgb(var(--card) / 0.55); }
 
+/* inputs */
 .input, .textarea, .select{
   width: 100%;
   border: 1px solid rgb(var(--border));
-  background: rgb(var(--card) / 0.55);
-  color: rgb(var(--fg));
+  background: rgb(var(--card) / 0.55) !important;
+  color: rgb(var(--fg)) !important;
   padding: 10px 12px;
   border-radius: 12px;
   outline: none;
 }
+
+input.input:-webkit-autofill,
+input.input:-webkit-autofill:hover,
+input.input:-webkit-autofill:focus,
+textarea.textarea:-webkit-autofill,
+textarea.textarea:-webkit-autofill:hover,
+textarea.textarea:-webkit-autofill:focus{
+  -webkit-text-fill-color: rgb(var(--fg)) !important;
+  transition: background-color 999999s ease-out 0s;
+  box-shadow: 0 0 0px 1000px rgb(var(--card) / 0.55) inset !important;
+}
+
+::placeholder{ color: rgb(var(--muted)); opacity: 0.9; }
+
 .textarea{ min-height: 140px; resize: vertical; }
 
+/* grids */
 .grid2{ display: grid; grid-template-columns: 1fr; gap: 12px; justify-items: center; }
 .grid3{ display: grid; grid-template-columns: 1fr; gap: 12px; justify-items: center; }
 .grid2 > *, .grid3 > *{ width: 100%; max-width: 520px; }
@@ -137,17 +173,6 @@ button, input, textarea, select{ font-family: inherit; }
 .brandTitle{ display: flex; flex-direction: column; line-height: 1.05; }
 .brandTitle b{ font-size: 14px; letter-spacing: 0.03em; }
 
-.iconBtn{
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  border: 1px solid rgb(var(--border));
-  background: rgb(var(--card) / 0.98);
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-}
-
 .userBtn{
   display: inline-flex;
   align-items: center;
@@ -157,6 +182,7 @@ button, input, textarea, select{ font-family: inherit; }
   padding: 6px 10px;
   border-radius: 999px;
   cursor: pointer;
+  color: rgb(var(--fg));
 }
 .userBtnText{
   font-weight: 900;
@@ -165,6 +191,7 @@ button, input, textarea, select{ font-family: inherit; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: rgb(var(--fg));
 }
 
 .avatar{
@@ -187,6 +214,7 @@ button, input, textarea, select{ font-family: inherit; }
   }
   .sidebar{ position: sticky; top: 78px; }
 }
+
 .sidebarCard{
   border: 1px solid rgb(var(--border));
   background: rgb(var(--card) / 0.98);
@@ -237,7 +265,7 @@ button, input, textarea, select{ font-family: inherit; }
   border: 1px solid rgb(var(--border));
   padding: 22px;
   background:
-    radial-gradient(900px 420px at 18% 0%, rgb(var(--brand-red) / 0.14), rgba(0,0,0,0)),
+    radial-gradient(900px 420px at 18% 0%, rgb(var(--brand-red) / 0.14), transparent),
     linear-gradient(180deg, rgb(var(--card)) 0%, rgb(var(--card)) 100%);
   box-shadow: var(--shadow);
 }
@@ -250,7 +278,22 @@ button, input, textarea, select{ font-family: inherit; }
   font-weight: 700;
 }
 
-/* CHIPS */
+/* ✅ ВОССТАНОВЛЕНО: “плашка” на мероприятиях (eventCard) */
+.eventCard{
+  box-shadow: none;
+  position: relative;
+  overflow: hidden;
+}
+.eventCard::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgb(var(--brand-red) / 0.10), transparent);
+  pointer-events: none;
+}
+.eventCard:hover{ filter: brightness(0.99); }
+
+/* ✅ ВОССТАНОВЛЕНО: чипы */
 .chip{
   display: inline-flex;
   align-items: center;
@@ -266,12 +309,17 @@ button, input, textarea, select{ font-family: inherit; }
 .chipGood{ border-color: rgb(var(--good) / 0.55); background: rgb(var(--good) / 0.12); color: rgb(var(--good)); }
 .chipRed{ border-color: rgb(var(--brand-red) / 0.55); background: rgb(var(--brand-red) / 0.10); color: rgb(var(--brand-red)); }
 
-/* CASE CARD ACCENTS */
+/* ✅ ВОССТАНОВЛЕНО: акцент состояния кейса (левая цветная полоса) */
 .caseCard{ border-left: 6px solid rgb(var(--border)); }
 .caseCard--not{ border-left-color: rgb(var(--border)); }
 .caseCard--prog{ border-left-color: rgb(var(--warn)); }
 .caseCard--done{ border-left-color: rgb(var(--good)); }
 .caseCard--locked{ border-left-color: rgb(var(--brand-red) / 0.65); opacity: 0.95; }
+
+/* TABLE */
+.table{ width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th, .table td{ text-align: left; padding: 10px 12px; border-top: 1px solid rgb(var(--border)); vertical-align: top; }
+.table thead th{ background: rgb(var(--card) / 0.55); }
 
 /* ERROR */
 .toastErr{
@@ -283,4 +331,63 @@ button, input, textarea, select{ font-family: inherit; }
   font-weight: 900;
   font-size: 13px;
   white-space: pre-wrap;
+}
+
+/* CHAT: messenger style */
+.chatThread{
+  height: 420px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid rgb(var(--border));
+  border-radius: 16px;
+  background: rgb(var(--card) / 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.msgRow{ display: flex; width: 100%; }
+.msgRow--user{ justify-content: flex-end; }
+.msgRow--assistant{ justify-content: flex-start; }
+.msgRow--manager{ justify-content: flex-start; }
+
+.bubble{
+  max-width: min(76ch, 100%);
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgb(var(--border));
+  background: rgb(var(--card) / 0.98);
+}
+.bubble--user{
+  border-color: rgb(var(--brand-red) / 0.40);
+  background: rgb(var(--brand-red) / 0.12);
+}
+.bubble--assistant{
+  background: rgb(var(--card) / 0.70);
+}
+.bubble--manager{
+  border-style: dashed;
+  background: rgb(var(--card) / 0.85);
+}
+.msgMeta{
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 850;
+  color: rgb(var(--muted));
+}
+
+/* WORKSPACE */
+.workspace{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 1020px){
+  .workspace{
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr);
+    align-items: start;
+  }
+  .workspaceChat{
+    position: sticky;
+    top: 92px;
+  }
 }

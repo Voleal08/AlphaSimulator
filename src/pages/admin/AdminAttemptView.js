@@ -16,11 +16,11 @@ export default function AdminAttemptView() {
 
   const { adminGetAttemptBundle, adminSendChat, adminSetAttemptReview } = useAppStore();
 
-  const [text, setText] = useState("");
   const [err, setErr] = useState("");
+  const [text, setText] = useState("");
 
-  const [reviewComment, setReviewComment] = useState("");
-  const [reviewScore, setReviewScore] = useState("");
+  const [comment, setComment] = useState("");
+  const [score, setScore] = useState("");
 
   const bundle = useMemo(() => {
     try {
@@ -36,38 +36,14 @@ export default function AdminAttemptView() {
   }, [bundle.data]);
 
   useEffect(() => {
-    if (!bundle.data?.attempt) return;
-    setReviewComment(bundle.data.attempt.managerComment || "");
-    setReviewScore(
-      typeof bundle.data.attempt.managerScore === "number" ? String(bundle.data.attempt.managerScore) : ""
-    );
-  }, [bundle.data?.attempt?.id]); // eslint-disable-line
-
-  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages.length]);
 
-  const onSend = () => {
-    setErr("");
-    try {
-      adminSendChat(attemptId, text);
-      setText("");
-    } catch (e) {
-      setErr(String(e?.message || e));
-    }
-  };
-
-  const onSaveReview = () => {
-    setErr("");
-    try {
-      adminSetAttemptReview(attemptId, {
-        managerComment: reviewComment,
-        managerScore: reviewScore === "" ? null : Number(reviewScore)
-      });
-    } catch (e) {
-      setErr(String(e?.message || e));
-    }
-  };
+  useEffect(() => {
+    if (!bundle.data?.attempt) return;
+    setComment(bundle.data.attempt.managerComment || "");
+    setScore(typeof bundle.data.attempt.managerScore === "number" ? String(bundle.data.attempt.managerScore) : "");
+  }, [bundle.data?.attempt?.id]); // eslint-disable-line
 
   if (bundle.err) {
     return (
@@ -79,7 +55,28 @@ export default function AdminAttemptView() {
   }
 
   const { attempt, user, case: c } = bundle.data;
-  const finalScore = typeof attempt.managerScore === "number" ? attempt.managerScore : attempt.score;
+
+  const onSend = () => {
+    setErr("");
+    try {
+      adminSendChat(attemptId, text);
+      setText("");
+    } catch (e) {
+      setErr(String(e?.message || e));
+    }
+  };
+
+  const onSave = () => {
+    setErr("");
+    try {
+      adminSetAttemptReview(attemptId, {
+        managerComment: comment,
+        managerScore: score === "" ? null : Number(score)
+      });
+    } catch (e) {
+      setErr(String(e?.message || e));
+    }
+  };
 
   return (
     <SiteShell>
@@ -88,18 +85,14 @@ export default function AdminAttemptView() {
           <div className="col" style={{ gap: 6, minWidth: 0 }}>
             <div className="h1" style={{ fontSize: 24 }}>Попытка</div>
             <div className="mutedSmall">
-              {user?.profile?.fullName || "—"} · {user?.email || "—"} · {c?.title || "—"}
+              <Link to={`/admin/users/${user?.id}`} style={{ textDecoration: "underline" }}>
+                {user?.profile?.fullName || "—"} · {user?.email || "—"}
+              </Link>
+              {" "}· {c?.title || "—"}
             </div>
           </div>
 
           <div className="row" style={{ flexWrap: "wrap" }}>
-            <span className="chip chipMuted">Токены: {attempt?.tokensSpent || 0}</span>
-            <span className={`chip ${attempt?.status === "SCORED" ? "chipGood" : "chipWarn"}`}>
-              {attempt?.status === "SCORED" ? "Завершён" : "В работе"}
-            </span>
-            {attempt?.status === "SCORED" ? (
-              <span className="chip chipGood">Итог: {finalScore ?? "—"}</span>
-            ) : null}
             <Link className="btn" to="/admin/attempts">Назад</Link>
           </div>
         </div>
@@ -115,78 +108,53 @@ export default function AdminAttemptView() {
                 {messages.length === 0 ? (
                   <div className="mutedSmall">Сообщений пока нет.</div>
                 ) : (
-                  messages.map((m) => {
-                    const rowCls =
-                      m.role === "user" ? "msgRow msgRow--user"
-                      : m.role === "manager" ? "msgRow msgRow--manager"
-                      : "msgRow msgRow--assistant";
-
-                    const bubbleCls =
-                      m.role === "user" ? "bubble bubble--user"
-                      : m.role === "manager" ? "bubble bubble--manager"
-                      : "bubble bubble--assistant";
-
-                    return (
-                      <div key={m.id} className={rowCls}>
-                        <div className={bubbleCls}>
-                          <div style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>
-                          <div className="msgMeta">
-                            {roleLabel(m.role)} · {m.createdAt ? String(m.createdAt).slice(11, 16) : "—"}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
+                  messages.map((m) => (
+                    <div key={m.id} style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.5 }}>
+                      <b>{roleLabel(m.role)}:</b> {m.content}
+                      <div className="mutedSmall">{m.createdAt ? String(m.createdAt).slice(0, 19).replace("T", " ") : ""}</div>
+                      <div style={{ height: 10 }} />
+                    </div>
+                  ))
                 )}
                 <div ref={bottomRef} />
               </div>
 
-              <div className="h2">Ответ участнику</div>
-              <textarea className="textarea" value={text} onChange={(e) => setText(e.target.value)} placeholder="Сообщение от администратора..." />
-              <div className="rowBetween" style={{ flexWrap: "wrap" }}>
-                <button className="btn btnPrimary" onClick={onSend}>Отправить</button>
-                <div className="mutedSmall">Сообщение появится у участника в этом же чате.</div>
-              </div>
+              <div className="h2">Сообщение участнику</div>
+              <textarea
+                className="textarea"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Сообщение от администратора..."
+              />
+              <button className="btn btnPrimary" onClick={onSend}>Отправить</button>
             </div>
           </div>
 
           <div className="card">
             <div className="cardInner col" style={{ gap: 10 }}>
-              <div className="rowBetween">
-                <div className="h2">Решение участника</div>
-                <span className="chip chipMuted">{attempt?.submittedAt ? `Сдано: ${attempt.submittedAt}` : "Ещё не сдано"}</span>
+              <div className="rowBetween" style={{ flexWrap: "wrap" }}>
+                <div className="h2">Решение</div>
+                <span className="chip chipMuted">{attempt?.submittedAt ? `Сдано: ${attempt.submittedAt}` : "Не сдано"}</span>
               </div>
 
               <div className="card" style={{ boxShadow: "none" }}>
                 <div className="cardInner" style={{ whiteSpace: "pre-wrap", minHeight: 220 }}>
-                  {attempt?.solution ? attempt.solution : "Пока нет решения."}
+                  {attempt?.solution || "—"}
                 </div>
               </div>
 
               <div className="h2">Комментарий и оценка</div>
-              <div className="col" style={{ gap: 8 }}>
-                <label className="mutedSmall">Комментарий администратора</label>
-                <textarea className="textarea" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} />
 
-                <label className="mutedSmall">Оценка (необязательно)</label>
-                <input className="input" type="number" value={reviewScore} onChange={(e) => setReviewScore(e.target.value)} />
+              <label className="mutedSmall">Комментарий</label>
+              <textarea className="textarea" value={comment} onChange={(e) => setComment(e.target.value)} />
 
-                <div className="rowBetween" style={{ flexWrap: "wrap" }}>
-                  <button className="btn btnPrimary" onClick={onSaveReview}>Сохранить</button>
-                  <div className="mutedSmall">
-                    {attempt?.managerReviewedAt ? `Обновлено: ${attempt.managerReviewedAt}` : "—"}
-                  </div>
-                </div>
+              <label className="mutedSmall">Оценка (0..{c?.maxScore ?? 100})</label>
+              <input className="input" type="number" value={score} onChange={(e) => setScore(e.target.value)} />
+
+              <div className="rowBetween" style={{ flexWrap: "wrap" }}>
+                <button className="btn btnPrimary" onClick={onSave}>Сохранить</button>
+                <div className="mutedSmall">{attempt?.managerReviewedAt ? `Обновлено: ${attempt.managerReviewedAt}` : "—"}</div>
               </div>
-
-              {attempt?.managerComment ? (
-                <div className="card" style={{ boxShadow: "none" }}>
-                  <div className="cardInner">
-                    <div className="mutedSmall">Текущий комментарий:</div>
-                    <div style={{ whiteSpace: "pre-wrap", marginTop: 6 }}>{attempt.managerComment}</div>
-                  </div>
-                </div>
-              ) : null}
             </div>
           </div>
         </div>

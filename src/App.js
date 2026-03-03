@@ -18,6 +18,7 @@ import NotFound from "./pages/NotFound";
 import AdminCases from "./pages/admin/AdminCases";
 import AdminAttempts from "./pages/admin/AdminAttempts";
 import AdminAttemptView from "./pages/admin/AdminAttemptView";
+import AdminUserView from "./pages/admin/AdminUserView";
 
 function RequireAuth({ children }) {
   const { user } = useAppStore();
@@ -119,6 +120,15 @@ export default function App() {
           element={
             <RequireManager>
               <AdminAttemptView />
+            </RequireManager>
+          }
+        />
+
+        <Route
+          path="/admin/users/:userId"
+          element={
+            <RequireManager>
+              <AdminUserView />
             </RequireManager>
           }
         />

@@ -1,16 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAppStore } from "../store/AppStore";
 import ThemeToggle from "./ThemeToggle";
 import { AlfaLogo, SiriusLogo } from "./Logos";
-
-function BurgerIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-      <path fill="currentColor" d="M4 7h16v2H4V7m0 6h16v2H4v-2m0 6h16v2H4v-2" />
-    </svg>
-  );
-}
 
 function UserIcon() {
   return (
@@ -36,8 +28,6 @@ function SideLink({ to, label, onClick }) {
 export default function SiteShell({ children }) {
   const nav = useNavigate();
   const { user, logout, isManager } = useAppStore();
-  const [menuOpen, setMenuOpen] = useState(false);
-
   const mgr = isManager();
 
   const userLabel = useMemo(() => {
@@ -45,38 +35,35 @@ export default function SiteShell({ children }) {
     return user.profile?.fullName || user.email;
   }, [user]);
 
-  const close = () => setMenuOpen(false);
-
-  const Sidebar = ({ onClick }) => (
+  const Sidebar = () => (
     <div className="sidebarCard" style={{ boxShadow: "none" }}>
-      <SideLink to="/" label="Главная" onClick={onClick} />
-      <SideLink to="/events" label="Мероприятия" onClick={onClick} />
-      <SideLink to="/leaderboard" label="Рейтинг" onClick={onClick} />
+      <SideLink to="/" label="Главная" />
+      <SideLink to="/events" label="Мероприятия" />
+      <SideLink to="/leaderboard" label="Рейтинг" />
 
       {mgr && (
         <>
           <div className="sidebarSep" />
-          <SideLink to="/admin/attempts" label="Проверка решений" onClick={onClick} />
-          <SideLink to="/admin/cases" label="Кейсы (админ)" onClick={onClick} />
-          <SideLink to="/notifications" label="Уведомления" onClick={onClick} />
-          <SideLink to="/analytics" label="Аналитика" onClick={onClick} />
+          <SideLink to="/admin/attempts" label="Проверка решений" />
+          <SideLink to="/admin/cases" label="Кейсы (админ)" />
+          <SideLink to="/notifications" label="Уведомления" />
+          <SideLink to="/analytics" label="Аналитика" />
         </>
       )}
 
       <div className="sidebarSep" />
 
       {!user ? (
-        <SideLink to="/auth" label="Войти / регистрация" onClick={onClick} />
+        <SideLink to="/auth" label="Войти / регистрация" />
       ) : (
         <>
-          {!mgr && <SideLink to="/my-cases" label="Мои кейсы" onClick={onClick} />}
-          <SideLink to="/profile" label="Профиль" onClick={onClick} />
+          {!mgr && <SideLink to="/my-cases" label="Мои кейсы" />}
+          <SideLink to="/profile" label="Профиль" />
 
           <button
             className="sideBtn sideBtnLogout"
             onClick={() => {
               logout();
-              if (onClick) onClick();
               nav("/");
             }}
           >
@@ -91,10 +78,6 @@ export default function SiteShell({ children }) {
     <>
       <div className="topbar">
         <div className="topbarInner">
-          <button className="iconBtn mobileOnly" onClick={() => setMenuOpen(true)} aria-label="Меню">
-            <BurgerIcon />
-          </button>
-
           <Link className="brand" to="/">
             <div className="row" style={{ gap: 10 }}>
               <AlfaLogo />
@@ -130,7 +113,8 @@ export default function SiteShell({ children }) {
 
       <div className="container">
         <div className="layout">
-          <aside className="sidebar desktopOnly">
+          {/* ✅ Sidebar без desktopOnly, чтобы не потерять навигацию после удаления бургера */}
+          <aside className="sidebar">
             <Sidebar />
           </aside>
 
@@ -139,22 +123,6 @@ export default function SiteShell({ children }) {
           </main>
         </div>
       </div>
-
-      {menuOpen && (
-        <div className="drawerOverlay" onMouseDown={close} role="presentation">
-          <div className="drawer" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="drawerHeader">
-              <div className="h2">Меню</div>
-              <button className="btn" onClick={close}>
-                Закрыть
-              </button>
-            </div>
-            <div className="drawerBody">
-              <Sidebar onClick={close} />
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

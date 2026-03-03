@@ -27,8 +27,9 @@ export default function Landing() {
                 <button className="btn btnPrimary" onClick={() => nav(user ? "/events" : "/auth")}>
                   {user ? "К событиям" : "Войти"}
                 </button>
-                <Link className="btn" to="/events">Мероприятия</Link>
-                <Link className="btn" to="/leaderboard">Рейтинг</Link>
+
+                <Link className="btn btnPrimary" to="/events">Мероприятия</Link>
+                <Link className="btn btnPrimary" to="/leaderboard">Рейтинг</Link>
 
                 {mgr && (
                   <>

@@ -17,14 +17,10 @@ export default function AdminAttempts() {
   return (
     <SiteShell>
       <div className="col" style={{ gap: 12 }}>
-        <div className="rowBetween" style={{ flexWrap: "wrap" }}>
-          <div className="col" style={{ gap: 6 }}>
-            <div className="h1">Проверка решений</div>
-            <div className="mutedSmall">Открой попытку, чтобы увидеть решение и диалог и ответить участнику.</div>
-          </div>
-        </div>
+        <div className="h1">Проверка решений</div>
+        <div className="mutedSmall">Открой попытку, чтобы увидеть решение и диалог и ответить участнику.</div>
 
-        <div className="card" style={{ boxShadow: "none" }}>
+        <div className="card">
           <div className="cardInner" style={{ overflow: "auto" }}>
             {rows.length === 0 ? (
               <div className="mutedSmall">Пока нет попыток.</div>
@@ -36,32 +32,46 @@ export default function AdminAttempts() {
                     <th>Мероприятие</th>
                     <th>Кейс</th>
                     <th>Статус</th>
-                    <th>Баллы</th>
+                    <th>Проверено</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((a) => (
-                    <tr key={a.id}>
-                      <td>
-                        <div style={{ fontWeight: 900 }}>{a.userName || "—"}</div>
-                        <div className="mutedSmall">{a.userEmail || "—"}</div>
-                      </td>
-                      <td className="mutedSmall">{a.eventTitle || "—"}</td>
-                      <td>{a.caseTitle || "—"}</td>
-                      <td>
-                        <span className={`chip ${a.status === "SCORED" ? "chipGood" : "chipWarn"}`}>
-                          {a.status === "SCORED" ? "Завершён" : "В работе"}
-                        </span>
-                      </td>
-                      <td className="mutedSmall">{a.score == null ? "—" : a.score}</td>
-                      <td>
-                        <Link className="btn btnPrimary" to={`/admin/attempts/${a.id}`}>
-                          Открыть
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
+                  {rows.map((a) => {
+                    const reviewed = !!(a.managerReviewedAt || a.managerComment || typeof a.managerScore === "number");
+                    return (
+                      <tr key={a.id}>
+                        <td>
+                          <div style={{ fontWeight: 900 }}>
+                            <Link to={`/admin/users/${a.userId}`} style={{ textDecoration: "underline" }}>
+                              {a.userName || "—"}
+                            </Link>
+                          </div>
+                          <div className="mutedSmall">
+                            <Link to={`/admin/users/${a.userId}`} style={{ textDecoration: "underline" }}>
+                              {a.userEmail || "—"}
+                            </Link>
+                          </div>
+                        </td>
+
+                        <td className="mutedSmall">{a.eventTitle || "—"}</td>
+                        <td>{a.caseTitle || "—"}</td>
+                        <td className="mutedSmall">{a.status || "—"}</td>
+
+                        <td>
+                          <span className={`chip ${reviewed ? "chipGood" : "chipMuted"}`}>
+                            {reviewed ? "Да" : "Нет"}
+                          </span>
+                        </td>
+
+                        <td>
+                          <Link className="btn btnPrimary" to={`/admin/attempts/${a.id}`}>
+                            Открыть
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}

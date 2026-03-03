@@ -74,7 +74,7 @@ function migrateDB(d) {
     passwordHash: u.passwordHash || ""
   }));
 
-  // manager review fields (на будущее, чтобы не ломало)
+  // review fields
   db.attempts = db.attempts.map((a) => ({
     ...a,
     managerComment: a.managerComment || "",
@@ -82,21 +82,17 @@ function migrateDB(d) {
     managerReviewedAt: a.managerReviewedAt || ""
   }));
 
-  // ✅ one-time migration to v5: убрать "публичные кейсы" из PRIVATE мероприятий
+  // ✅ Нормализация: публичные кейсы не бывают внутри PRIVATE мероприятий
   if (prevVersion < 5) {
     const eventById = Object.fromEntries(db.events.map((e) => [e.id, e]));
-
     db.cases = db.cases.map((c) => {
       const ev = eventById[c.eventId];
       if (ev?.visibility === "PRIVATE" && c.isPublic) return { ...c, isPublic: false };
       return c;
     });
 
-    // (не обязательно, но полезно) если в демо кто-то случайно сделал ev_public PRIVATE — вернём обратно
-    db.events = db.events.map((e) => {
-      if (e.id === "ev_public") return { ...e, visibility: "PUBLIC" };
-      return e;
-    });
+    // демо-ивент "Открытый трек" всегда PUBLIC
+    db.events = db.events.map((e) => (e.id === "ev_public" ? { ...e, visibility: "PUBLIC" } : e));
 
     db.version = 5;
   }
@@ -231,7 +227,6 @@ export function AppStoreProvider({ children }) {
 
       // ---------- EVENTS ----------
       listEvents: () => db.events.slice().sort(sortByTitle),
-
       getEvent: (eventId) => db.events.find((e) => e.id === eventId) || null,
 
       myEventAccess: (eventId) => {
@@ -307,7 +302,6 @@ export function AppStoreProvider({ children }) {
         }));
       },
 
-      // manager CRUD
       adminCreateEvent: (data) => {
         if (!isManager(user)) throw new Error("Нет прав");
         const title = (data.title || "").trim();
@@ -344,7 +338,6 @@ export function AppStoreProvider({ children }) {
       },
 
       // ---------- CASES ----------
-      // ✅ Открытые кейсы = isPublic И event PUBLIC
       listPublicCases: () => {
         return db.cases
           .filter((c) => c.isPublic)
@@ -353,8 +346,6 @@ export function AppStoreProvider({ children }) {
           .sort((a, b) => (a.level - b.level) || a.title.localeCompare(b.title));
       },
 
-      // ✅ PRIVATE event без APPROVED: кейсы вообще не возвращаем
-      // ✅ для менеджера не подмешиваем status/score (чтобы нигде не было “в работе/баллы” у админа)
       listCasesForEvent: (eventId) => {
         const event = db.events.find((e) => e.id === eventId) || null;
         const accessOk = canAccessEvent(db, user, event);
@@ -373,14 +364,7 @@ export function AppStoreProvider({ children }) {
           });
       },
 
-      // ✅ прямой доступ к кейсу PRIVATE без APPROVED запрещён
-      getCase: (caseId) => {
-        const c = db.cases.find((x) => x.id === caseId) || null;
-        if (!c) return null;
-        const ev = db.events.find((e) => e.id === c.eventId) || null;
-        if (ev?.visibility === "PRIVATE" && !isManager(user) && !canAccessEvent(db, user, ev)) return null;
-        return c;
-      },
+      getCase: (caseId) => db.cases.find((c) => c.id === caseId) || null,
 
       getCaseEvent: (caseId) => {
         const c = db.cases.find((x) => x.id === caseId);
@@ -476,7 +460,10 @@ export function AppStoreProvider({ children }) {
             startedAt: nowISO(),
             submittedAt: "",
             score: null,
-            solution: ""
+            solution: "",
+            managerComment: "",
+            managerScore: null,
+            managerReviewedAt: ""
           };
           setDB((prev) => ({ ...prev, attempts: [...prev.attempts, newAttempt] }));
           return newAttempt;
@@ -537,7 +524,33 @@ export function AppStoreProvider({ children }) {
         setDB((prev) => ({ ...prev, attempts: prev.attempts.map((a) => (a.id === attemptId ? updated : a)) }));
       },
 
-      // ---------- MANAGER REVIEW (как было) ----------
+      // ---------- MANAGER REVIEW ----------
+      adminListAttempts: () => {
+        if (!isManager(user)) throw new Error("Нет прав");
+
+        const caseById = Object.fromEntries(db.cases.map((c) => [c.id, c]));
+        const eventById = Object.fromEntries(db.events.map((e) => [e.id, e]));
+        const userById = Object.fromEntries(db.users.map((u) => [u.id, u]));
+
+        return db.attempts
+          .slice()
+          .sort((a, b) => String(b.submittedAt || b.startedAt || "").localeCompare(String(a.submittedAt || a.startedAt || "")))
+          .map((a) => {
+            const c = caseById[a.caseId];
+            const ev = c ? eventById[c.eventId] : null;
+            const u = userById[a.userId];
+
+            return {
+              ...a,
+              userId: a.userId, // ✅ нужно для ссылок
+              caseTitle: c?.title || "",
+              eventTitle: ev?.title || "",
+              userEmail: u?.email || "",
+              userName: u?.profile?.fullName || ""
+            };
+          });
+      },
+
       adminListAttemptsForEvent: (eventId) => {
         if (!isManager(user)) throw new Error("Нет прав");
 
@@ -552,6 +565,7 @@ export function AppStoreProvider({ children }) {
           .sort((a, b) => String(b.submittedAt || "").localeCompare(String(a.submittedAt || "")))
           .map((a) => ({
             ...a,
+            userId: a.userId,
             caseTitle: caseById[a.caseId]?.title || "",
             userEmail: userById[a.userId]?.email || "",
             userName: userById[a.userId]?.profile?.fullName || ""
@@ -574,6 +588,60 @@ export function AppStoreProvider({ children }) {
         return { attempt: a, user: u, case: c, chat };
       },
 
+      adminSendChat: (attemptId, message) => {
+        if (!isManager(user)) throw new Error("Нет прав");
+
+        const text = (message || "").trim();
+        if (!text) throw new Error("Введите сообщение");
+
+        const attempt = db.attempts.find((a) => a.id === attemptId) || null;
+        if (!attempt) throw new Error("Попытка не найдена");
+
+        const msg = {
+          id: id("m"),
+          attemptId,
+          role: "manager",
+          content: text,
+          tokens: estimateTokens(text),
+          createdAt: nowISO()
+        };
+
+        setDB((prev) => ({ ...prev, chat: [...prev.chat, msg] }));
+      },
+
+      adminSetAttemptReview: (attemptId, patch) => {
+        if (!isManager(user)) throw new Error("Нет прав");
+
+        const a = db.attempts.find((x) => x.id === attemptId) || null;
+        if (!a) throw new Error("Попытка не найдена");
+
+        const c = db.cases.find((x) => x.id === a.caseId) || null;
+        const maxScore = Number(c?.maxScore || 100);
+
+        const comment = String(patch?.managerComment || "").trim();
+
+        let score = null;
+        const raw = patch?.managerScore;
+        if (raw !== null && raw !== undefined && raw !== "") {
+          const n = Number(raw);
+          if (!Number.isFinite(n)) throw new Error("Оценка должна быть числом");
+          score = clamp(Math.round(n), 0, maxScore);
+        }
+
+        setDB((prev) => ({
+          ...prev,
+          attempts: prev.attempts.map((x) =>
+            x.id === attemptId ? { ...x, managerComment: comment, managerScore: score, managerReviewedAt: nowISO() } : x
+          )
+        }));
+      },
+
+      // ✅ ПРОСМОТР ПРОФИЛЯ УЧАСТНИКА ДЛЯ АДМИНА
+      adminGetUser: (userId) => {
+        if (!isManager(user)) throw new Error("Нет прав");
+        return db.users.find((u) => u.id === userId) || null;
+      },
+
       // ---------- LEADERBOARD ----------
       leaderboard: () => {
         const map = {};
@@ -586,13 +654,17 @@ export function AppStoreProvider({ children }) {
             solved: 0
           };
         }
+
         for (const a of db.attempts) {
           if (a.status !== "SCORED") continue;
           const row = map[a.userId];
           if (!row) continue;
-          row.totalScore += a.score || 0;
+
+          const final = typeof a.managerScore === "number" ? a.managerScore : (a.score || 0);
+          row.totalScore += final;
           row.solved += 1;
         }
+
         return Object.values(map)
           .filter((r) => r.solved > 0)
           .sort((x, y) => y.totalScore - x.totalScore);
