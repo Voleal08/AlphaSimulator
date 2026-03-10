@@ -1,28 +1,50 @@
 import React from "react";
+import { useAppStore } from "../store/AppStore";
 
-/*
-  Это SVG-заглушки (неофициальные логотипы).
-  Если у вас есть права на реальные логотипы — положите их в public/ и замените на <img src="/..."/>.
-*/
+const baseStyle = {
+  display: "block",
+  height: 26,
+  width: "auto",
+  backgroundColor: "transparent"
+};
 
-export function AlfaLogo() {
+function logoStyle(theme, height) {
+  return {
+    ...baseStyle,
+    height,
+    // убирает белую подложку, если она зашита в картинку
+    mixBlendMode: "multiply",
+    // в тёмной теме слегка “подсветим”, чтобы не было слишком темно
+    filter: theme === "dark" ? "brightness(1.25) contrast(1.05)" : "none"
+  };
+}
+
+export function AlfaLogo({ height = 26 }) {
+  const { theme } = useAppStore();
+
   return (
-    <svg width="34" height="34" viewBox="0 0 34 34" aria-label="Alfa placeholder">
-      <rect x="1" y="1" width="32" height="32" rx="10" fill="rgba(239,49,36,0.15)" stroke="rgba(239,49,36,0.55)" />
-      <path d="M10 22 L17 10 L24 22" stroke="rgba(239,49,36,1)" strokeWidth="2.6" fill="none" strokeLinecap="round" />
-      <path d="M13 18 H21" stroke="rgba(239,49,36,1)" strokeWidth="2.6" strokeLinecap="round" />
-    </svg>
+    <img
+      src="/альфа_будущее_лого.webp"
+      alt="Альфа-Будущее"
+      style={logoStyle(theme, height)}
+      loading="eager"
+      decoding="async"
+      draggable={false}
+    />
   );
 }
 
-export function SiriusLogo() {
+export function SiriusLogo({ height = 26 }) {
+  const { theme } = useAppStore();
+
   return (
-    <svg width="34" height="34" viewBox="0 0 34 34" aria-label="Sirius placeholder">
-      <rect x="1" y="1" width="32" height="32" rx="10" fill="rgba(255,255,255,0.06)" stroke="rgba(160,170,190,0.65)" />
-      <path
-        d="M17 9 L19 15 L25 15 L20 18.5 L22 24 L17 20.5 L12 24 L14 18.5 L9 15 L15 15 Z"
-        fill="rgba(160,170,190,0.95)"
-      />
-    </svg>
+    <img
+      src="/университет_сириус_лого.webp"
+      alt="Университет Сириус"
+      style={logoStyle(theme, height)}
+      loading="eager"
+      decoding="async"
+      draggable={false}
+    />
   );
 }

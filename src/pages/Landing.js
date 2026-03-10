@@ -24,17 +24,29 @@ export default function Landing() {
               </div>
 
               <div className="row" style={{ flexWrap: "wrap" }}>
-                <button className="btn btnPrimary" onClick={() => nav(user ? "/events" : "/auth")}>
-                  {user ? "К событиям" : "Войти"}
+                {/* ✅ Одна кнопка вместо "К событиям" + "Мероприятия" */}
+                <button className="btn btnPrimary" onClick={() => nav("/events")}>
+                  Мероприятия
                 </button>
 
-                <Link className="btn btnPrimary" to="/events">Мероприятия</Link>
-                <Link className="btn btnPrimary" to="/leaderboard">Рейтинг</Link>
+                {!user && (
+                  <button className="btn btnPrimary" onClick={() => nav("/auth")}>
+                    Войти
+                  </button>
+                )}
+
+                <Link className="btn btnPrimary" to="/leaderboard">
+                  Рейтинг
+                </Link>
 
                 {mgr && (
                   <>
-                    <Link className="btn btnPrimary" to="/events?create=1">+ Мероприятие</Link>
-                    <Link className="btn btnPrimary" to="/admin/cases">+ Кейс</Link>
+                    <Link className="btn btnPrimary" to="/events?create=1">
+                      + Мероприятие
+                    </Link>
+                    <Link className="btn btnPrimary" to="/admin/cases">
+                      + Кейс
+                    </Link>
                   </>
                 )}
               </div>
@@ -44,7 +56,9 @@ export default function Landing() {
 
         <div className="rowBetween">
           <div className="h2">События</div>
-          <Link className="mutedSmall" to="/events">все</Link>
+          <Link className="mutedSmall" to="/events">
+            все
+          </Link>
         </div>
 
         <div className="grid3">
