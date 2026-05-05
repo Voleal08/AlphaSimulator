@@ -14,28 +14,31 @@ import Leaderboard from "./pages/Leaderboard";
 import Notifications from "./pages/Notifications";
 import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
+import Progress from "./pages/Progress";
 
 import AdminCases from "./pages/admin/AdminCases";
 import AdminAttempts from "./pages/admin/AdminAttempts";
 import AdminAttemptView from "./pages/admin/AdminAttemptView";
 import AdminUserView from "./pages/admin/AdminUserView";
+import AdminUsers from "./pages/admin/AdminUsers";
 
 function RequireAuth({ children }) {
   const { user } = useAppStore();
-  return user ? children : <Navigate to="/auth" replace />;
+  return user ? children : <Navigate to="/auth?mode=login" replace />;
 }
 
 function RequireManager({ children }) {
   const { user, isManager } = useAppStore();
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/auth?mode=login" replace />;
   if (!isManager()) return <Navigate to="/" replace />;
   return children;
 }
 
 function RequireParticipant({ children }) {
   const { user, isManager } = useAppStore();
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/auth?mode=login" replace />;
   if (isManager()) return <Navigate to="/admin/attempts" replace />;
+  if (user.role !== "participant") return <Navigate to="/" replace />;
   return children;
 }
 
@@ -73,6 +76,15 @@ export default function App() {
           element={
             <RequireParticipant>
               <Dashboard />
+            </RequireParticipant>
+          }
+        />
+
+        <Route
+          path="/progress"
+          element={
+            <RequireParticipant>
+              <Progress />
             </RequireParticipant>
           }
         />
@@ -120,6 +132,15 @@ export default function App() {
           element={
             <RequireManager>
               <AdminAttemptView />
+            </RequireManager>
+          }
+        />
+
+        <Route
+          path="/admin/users"
+          element={
+            <RequireManager>
+              <AdminUsers />
             </RequireManager>
           }
         />

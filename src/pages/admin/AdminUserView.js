@@ -1,126 +1,150 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import SiteShell from "../../components/SiteShell";
 import { useAppStore } from "../../store/AppStore";
 
-function roleLabel(role) {
-  if (role === "participant") return "Участник";
-  if (role === "bank_staff") return "Сотрудник банка";
-  if (role === "admin") return "Администратор";
-  return role || "—";
+function roleLabel(user) {
+  if (!user) return "—";
+  return user.role === "admin" ? "Администратор" : "Участник";
 }
 
 export default function AdminUserView() {
   const { userId } = useParams();
-  const { adminGetUser } = useAppStore();
+  const { adminGetUser, adminSetUserRole } = useAppStore();
 
-  const u = useMemo(() => {
+  const [u, setU] = useState(null);
+  const [err, setErr] = useState("");
+  const [ok, setOk] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const loadUser = async () => {
     try {
-      return adminGetUser(userId);
-    } catch {
-      return null;
+      setErr("");
+      setLoading(true);
+      const data = await adminGetUser(userId);
+      setU(data || null);
+    } catch (e) {
+      setErr(String(e?.message || e));
+      setU(null);
+    } finally {
+      setLoading(false);
     }
-  }, [adminGetUser, userId]);
+  };
+
+  useEffect(() => {
+    loadUser();
+  }, [userId]); // eslint-disable-line
+
+  const onMakeAdmin = async () => {
+    try {
+      setErr("");
+      setOk("");
+      await adminSetUserRole(u.id, "admin");
+      setOk("Сохранено");
+      await loadUser();
+    } catch (e) {
+      setErr(String(e?.message || e));
+    }
+  };
+
+  const onRemoveAdmin = async () => {
+    try {
+      setErr("");
+      setOk("");
+      await adminSetUserRole(u.id, "participant");
+      setOk("Сохранено");
+      await loadUser();
+    } catch (e) {
+      setErr(String(e?.message || e));
+    }
+  };
+
+  if (loading) {
+    return (
+      <SiteShell>
+        <div className="mutedSmall">Загрузка...</div>
+      </SiteShell>
+    );
+  }
 
   if (!u) {
     return (
       <SiteShell>
-        <div className="toastErr">Пользователь не найден или нет доступа</div>
-        <Link className="btn btnPrimary" to="/admin/attempts">Назад</Link>
+        <div className="toastErr">Пользователь не найден</div>
+        <Link className="btn btnPrimary" to="/admin/users">Назад</Link>
       </SiteShell>
     );
   }
+
+  const isDefaultAdmin = u.email === "admin";
 
   return (
     <SiteShell>
       <div className="col" style={{ gap: 12 }}>
         <div className="rowBetween" style={{ flexWrap: "wrap" }}>
           <div className="col" style={{ gap: 6 }}>
-            <div className="h1">Профиль участника</div>
+            <div className="h1">Профиль пользователя</div>
             <div className="mutedSmall">{u.email}</div>
           </div>
 
           <div className="row" style={{ flexWrap: "wrap" }}>
-            <span className="chip chipMuted">{roleLabel(u.role)}</span>
-            <Link className="btn" to="/admin/attempts">К проверке решений</Link>
+            <span className={`chip ${u.role === "admin" ? "chipRed" : "chipMuted"}`}>
+              {roleLabel(u)}
+            </span>
+            <Link className="btn" to="/admin/users">К пользователям</Link>
           </div>
         </div>
+
+        {err ? <div className="toastErr">{err}</div> : null}
+        {ok ? (
+          <div className="card" style={{ boxShadow: "none" }}>
+            <div className="cardInner mutedSmall">{ok}</div>
+          </div>
+        ) : null}
+
+        {!isDefaultAdmin ? (
+          <div className="row" style={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
+            {u.role === "participant" ? (
+              <button className="btn btnPrimary" onClick={onMakeAdmin}>
+                Назначить админом
+              </button>
+            ) : (
+              <button className="btn" onClick={onRemoveAdmin}>
+                Снять роль администратора
+              </button>
+            )}
+          </div>
+        ) : null}
+
+        {isDefaultAdmin ? (
+          <div className="card" style={{ boxShadow: "none" }}>
+            <div className="cardInner mutedSmall">
+              Это дефолтный администратор. Его роль нельзя снять.
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid2">
           <div className="card">
             <div className="cardInner col" style={{ gap: 10 }}>
               <div className="h2">Основное</div>
-
-              <div className="row" style={{ gap: 12 }}>
-                {u.avatarDataUrl ? (
-                  <img
-                    src={u.avatarDataUrl}
-                    alt="avatar"
-                    style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: 999,
-                      border: "1px solid rgb(var(--border))",
-                      objectFit: "cover"
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: 999,
-                      border: "1px solid rgb(var(--border))",
-                      background: "rgb(var(--card) / 0.55)"
-                    }}
-                  />
-                )}
-
-                <div className="col" style={{ gap: 4 }}>
-                  <div style={{ fontWeight: 950 }}>{u.profile?.fullName || "—"}</div>
-                  <div className="mutedSmall">ID: {u.id}</div>
-                  <div className="mutedSmall">Создан: {u.createdAt || "—"}</div>
-                </div>
-              </div>
-
-              <div className="grid2">
-                <div className="col" style={{ gap: 6 }}>
-                  <div className="mutedSmall">Возраст</div>
-                  <div style={{ fontWeight: 900 }}>{u.profile?.age || "—"}</div>
-                </div>
-                <div className="col" style={{ gap: 6 }}>
-                  <div className="mutedSmall">Город</div>
-                  <div style={{ fontWeight: 900 }}>{u.profile?.city || "—"}</div>
-                </div>
-              </div>
-
-              <div className="col" style={{ gap: 6 }}>
-                <div className="mutedSmall">Образование</div>
-                <div style={{ fontWeight: 900 }}>{u.profile?.educationLevel || "—"}</div>
-              </div>
+              <div style={{ fontWeight: 950 }}>{u.profile?.fullName || "—"}</div>
+              <div className="mutedSmall">Возраст: {u.profile?.age ?? "—"}</div>
+              <div className="mutedSmall">Город: {u.profile?.city || "—"}</div>
+              <div className="mutedSmall">Образование: {u.profile?.educationLevel || "—"}</div>
             </div>
           </div>
 
           <div className="card">
             <div className="cardInner col" style={{ gap: 10 }}>
               <div className="h2">Дополнительно</div>
+              <div className="mutedSmall">Университет: {u.profile?.university || "—"}</div>
+              <div className="mutedSmall">Направление: {u.profile?.major || "—"}</div>
 
-              <div className="col" style={{ gap: 6 }}>
-                <div className="mutedSmall">Университет</div>
-                <div style={{ fontWeight: 900 }}>{u.profile?.university || "—"}</div>
-              </div>
-
-              <div className="col" style={{ gap: 6 }}>
-                <div className="mutedSmall">Направление</div>
-                <div style={{ fontWeight: 900 }}>{u.profile?.major || "—"}</div>
-              </div>
-
-              <div className="col" style={{ gap: 6 }}>
-                <div className="mutedSmall">Навыки</div>
-                <div className="card" style={{ boxShadow: "none" }}>
-                  <div className="cardInner" style={{ whiteSpace: "pre-wrap" }}>
-                    {u.profile?.skills || "—"}
-                  </div>
+              <div className="h2" style={{ marginTop: 8 }}>Навыки</div>
+              <div className="card" style={{ boxShadow: "none" }}>
+                <div className="cardInner" style={{ whiteSpace: "pre-wrap" }}>
+                  {u.profile?.skills || "—"}
                 </div>
               </div>
             </div>

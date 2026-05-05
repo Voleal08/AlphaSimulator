@@ -29,42 +29,40 @@ export function defaultDB() {
     {
       id: "case_pub_1",
       eventId: e1.id,
-      title: "Открытый кейс",
+      title: "Кейс публичного мероприятия",
       level: 1,
       shortDescription: "—",
       maxScore: 100,
-      isPublic: true,
       createdAt: nowISO(),
       updatedAt: nowISO()
     },
     {
       id: "case_priv_1",
       eventId: e2.id,
-      title: "Кейс (по заявке)",
+      title: "Кейс приватного мероприятия",
       level: 2,
       shortDescription: "—",
       maxScore: 100,
-      isPublic: false,
       createdAt: nowISO(),
       updatedAt: nowISO()
     }
   ];
 
   return {
-    version: 2,
+    version: 10,
     theme: "light",
 
     users: [
       {
-        id: "u_admin",
-        email: "admin@local",
+        id: "u_admin_default",
+        email: "admin",
         role: "admin",
         createdAt: nowISO(),
         passwordHash: "", // будет проставлен в store
         profile: {
           fullName: "Администратор",
-          age: 22,
-          educationLevel: "other",
+          age: 30,
+          educationLevel: "",
           city: "Москва",
           university: "",
           major: "",
@@ -73,6 +71,7 @@ export function defaultDB() {
         avatarDataUrl: ""
       }
     ],
+
     currentUserId: null,
 
     events: [e1, e2],

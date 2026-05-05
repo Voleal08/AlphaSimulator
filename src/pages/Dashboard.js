@@ -80,8 +80,11 @@ export default function Dashboard() {
   return (
     <SiteShell>
       <div className="col">
-        <div className="rowBetween">
+        <div className="rowBetween" style={{ flexWrap: "wrap", gap: 12 }}>
           <div className="h1">Мои кейсы</div>
+          {user.fastTrack && (
+            <span className="chip chipGreen">Fast-track</span>
+          )}
         </div>
 
         <div className="grid2">

@@ -15,11 +15,11 @@ function UserIcon() {
   );
 }
 
-function SideLink({ to, label, onClick }) {
+function SideLink({ to, label }) {
   const loc = useLocation();
   const active = loc.pathname === to || loc.pathname.startsWith(to + "/");
   return (
-    <Link className={`sideLink ${active ? "sideLinkActive" : ""}`} to={to} onClick={onClick}>
+    <Link className={`sideLink ${active ? "sideLinkActive" : ""}`} to={to}>
       {label}
     </Link>
   );
@@ -48,16 +48,18 @@ export default function SiteShell({ children }) {
           <SideLink to="/admin/cases" label="Кейсы (админ)" />
           <SideLink to="/notifications" label="Уведомления" />
           <SideLink to="/analytics" label="Аналитика" />
+          <SideLink to="/admin/users" label="Пользователи" />
         </>
       )}
 
       <div className="sidebarSep" />
 
       {!user ? (
-        <SideLink to="/auth" label="Войти / регистрация" />
+        <SideLink to="/auth?mode=login" label="Войти / регистрация" />
       ) : (
         <>
-          {!mgr && <SideLink to="/my-cases" label="Мои кейсы" />}
+          {user.role === "participant" && <SideLink to="/my-cases" label="Мои кейсы" />}
+          {user.role === "participant" && <SideLink to="/progress" label="Прогресс" />}
           <SideLink to="/profile" label="Профиль" />
 
           <button
@@ -91,10 +93,16 @@ export default function SiteShell({ children }) {
 
           <div className="row" style={{ gap: 10 }}>
             <ThemeToggle />
+
             {!user ? (
-              <button className="btn btnPrimary" onClick={() => nav("/auth")}>
-                Войти
-              </button>
+              <>
+                <button className="btn btnPrimary" onClick={() => nav("/auth?mode=login")}>
+                  Войти
+                </button>
+                <button className="btn btnPrimary" onClick={() => nav("/auth?mode=register")}>
+                  Зарегистрироваться
+                </button>
+              </>
             ) : (
               <button className="userBtn" onClick={() => nav("/profile")} title={user.email}>
                 {user.avatarDataUrl ? (
@@ -113,7 +121,6 @@ export default function SiteShell({ children }) {
 
       <div className="container">
         <div className="layout">
-          {/* ✅ Sidebar без desktopOnly, чтобы не потерять навигацию после удаления бургера */}
           <aside className="sidebar">
             <Sidebar />
           </aside>

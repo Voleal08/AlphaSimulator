@@ -25,7 +25,7 @@ export default function Notifications() {
   }, [mgr, adminListApplications]);
 
   const mine = useMemo(() => {
-    if (!user || mgr) return [];
+    if (!user || mgr || user.role !== "participant") return [];
     try {
       return listMyApplications();
     } catch {
@@ -36,45 +36,32 @@ export default function Notifications() {
   return (
     <SiteShell>
       <div className="col" style={{ gap: 12 }}>
-        <div className="rowBetween" style={{ flexWrap: "wrap" }}>
-          <div className="col" style={{ gap: 6 }}>
-            <div className="h1">Уведомления</div>
-            <div className="mutedSmall">
-              {mgr ? "Заявки на доступ к закрытым мероприятиям." : "Ваши заявки на доступ к мероприятиям."}
-            </div>
-          </div>
-        </div>
+        <div className="h1">Уведомления</div>
 
         {err ? <div className="toastErr">{err}</div> : null}
 
         {mgr ? (
-          <div className="card" style={{ boxShadow: "none", overflow: "auto" }}>
-            <div className="cardInner" style={{ padding: 0 }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Участник</th>
-                    <th>Мероприятие</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {pending.length === 0 ? (
+          <div className="card">
+            <div className="cardInner" style={{ overflow: "auto" }}>
+              {pending.length === 0 ? (
+                <div className="mutedSmall">Нет новых заявок.</div>
+              ) : (
+                <table className="table">
+                  <thead>
                     <tr>
-                      <td colSpan={3} className="muted" style={{ padding: 12 }}>
-                        —
-                      </td>
+                      <th>Участник</th>
+                      <th>Мероприятие</th>
+                      <th />
                     </tr>
-                  ) : (
-                    pending.map((p) => (
+                  </thead>
+                  <tbody>
+                    {pending.map((p) => (
                       <tr key={p.id}>
                         <td>
                           <div style={{ fontWeight: 900 }}>{p.userName || "—"}</div>
                           <div className="mutedSmall">{p.userEmail || "—"}</div>
                         </td>
-                        <td>
-                          <b>{p.eventTitle}</b>
-                        </td>
+                        <td><b>{p.eventTitle}</b></td>
                         <td>
                           <div className="row" style={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
                             <button
@@ -106,15 +93,15 @@ export default function Notifications() {
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         ) : (
-          <div className="card" style={{ boxShadow: "none", overflow: "auto" }}>
-            <div className="cardInner" style={{ padding: 0 }}>
+          <div className="card">
+            <div className="cardInner" style={{ overflow: "auto" }}>
               <table className="table">
                 <thead>
                   <tr>
@@ -133,9 +120,7 @@ export default function Notifications() {
                   ) : (
                     mine.map((a) => (
                       <tr key={a.id}>
-                        <td>
-                          <b>{a.eventTitle}</b>
-                        </td>
+                        <td><b>{a.eventTitle}</b></td>
                         <td>{statusChip(a.status)}</td>
                         <td className="mutedSmall">{a.createdAt ? String(a.createdAt).slice(0, 10) : "—"}</td>
                       </tr>

@@ -16,39 +16,89 @@ export default function CaseView() {
   const bottomRef = useRef(null);
 
   const {
+    db,
     user,
     isManager,
     getCase,
+    getCaseSync,
     getCaseEvent,
     getAttemptByCase,
+    getAttemptByCaseSync,
     startAttempt,
     getChat,
+    getChatSync,
     sendChat,
     submitSolution
   } = useAppStore();
 
   const mgr = isManager();
-  const c = getCase(caseId);
-  const ev = getCaseEvent(caseId);
 
-  const attempt = useMemo(() => {
-    if (mgr) return null;
-    return getAttemptByCase(caseId);
-  }, [mgr, getAttemptByCase, caseId]);
+  const rawCase = useMemo(() => {
+    return (db.cases || []).find((x) => x.id === caseId) || null;
+  }, [db.cases, caseId]);
 
-  const messages = useMemo(() => {
-    if (!attempt) return [];
-    return (getChat(attempt.id) || [])
-      .slice()
-      .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
-  }, [attempt, getChat]);
-
+  const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [chatText, setChatText] = useState("");
 
+  const [caseData, setCaseData] = useState(() => getCaseSync(caseId) || rawCase);
+  const [eventData, setEventData] = useState(() => getCaseEvent(caseId));
+
+  const [attempt, setAttempt] = useState(() => getAttemptByCaseSync(caseId));
+  const [messages, setMessages] = useState(() => {
+    const att = getAttemptByCaseSync(caseId);
+    return att ? getChatSync(att.id) : [];
+  });
+
+  const [chatText, setChatText] = useState("");
   const [solution, setSolution] = useState("");
 
-  // подхватываем решение, если оно уже есть в attempt
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        setErr("");
+        setLoading(true);
+
+        let c = getCaseSync(caseId);
+        if (!c) c = await getCase(caseId);
+        if (!alive) return;
+
+        setCaseData(c || null);
+        setEventData(getCaseEvent(caseId));
+
+        if (user?.role === "participant") {
+          const a = await getAttemptByCase(caseId);
+          if (!alive) return;
+
+          setAttempt(a || null);
+          setSolution(a?.solution || "");
+
+          if (a?.id) {
+            const chatRows = await getChat(a.id);
+            if (!alive) return;
+            setMessages(Array.isArray(chatRows) ? chatRows : []);
+          } else {
+            setMessages([]);
+          }
+        } else {
+          setAttempt(null);
+          setMessages([]);
+        }
+      } catch (e) {
+        if (!alive) return;
+        setErr(String(e?.message || e));
+        setCaseData(null);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [caseId]); // eslint-disable-line
+
   useEffect(() => {
     setSolution(attempt?.solution || "");
   }, [attempt?.id]); // eslint-disable-line
@@ -57,43 +107,71 @@ export default function CaseView() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages.length]);
 
-  if (!c) {
+  if (loading) {
     return (
       <SiteShell>
-        <div className="toastErr">Кейс не найден или недоступен</div>
-        <Link className="btn btnPrimary" to="/events">К мероприятиям</Link>
+        <div className="mutedSmall">Загрузка...</div>
       </SiteShell>
     );
   }
 
-  const levelLabel = c.level === 1 ? "Уровень 1" : c.level === 2 ? "Уровень 2" : "Уровень 3";
+  if (!caseData) {
+    return (
+      <SiteShell>
+        <div className="toastErr">{err || "Кейс не найден"}</div>
+        <Link className="btn btnPrimary" to="/events">
+          К мероприятиям
+        </Link>
+      </SiteShell>
+    );
+  }
 
-  const onStart = () => {
-    setErr("");
+  const levelLabel =
+    caseData.level === 1 ? "Уровень 1" :
+    caseData.level === 2 ? "Уровень 2" :
+    "Уровень 3";
+
+  const onStart = async () => {
     try {
-      startAttempt(c.id);
-      // остаёмся на этой странице — чат справа появится сам
+      setErr("");
+      const a = await startAttempt(caseData.id);
+      setAttempt(a || null);
+      setSolution(a?.solution || "");
+
+      if (a?.id) {
+        const chatRows = await getChat(a.id);
+        setMessages(Array.isArray(chatRows) ? chatRows : []);
+      }
     } catch (e) {
       setErr(String(e?.message || e));
     }
   };
 
-  const onSendChat = () => {
-    setErr("");
+  const onSendChat = async () => {
     try {
+      setErr("");
       if (!attempt) throw new Error("Сначала начните кейс");
-      sendChat(attempt.id, chatText);
+      if (!chatText.trim()) return;
+
+      await sendChat(attempt.id, chatText);
       setChatText("");
+
+      const nextAttempt = await getAttemptByCase(caseId);
+      setAttempt(nextAttempt || attempt);
+
+      const chatRows = await getChat(attempt.id);
+      setMessages(Array.isArray(chatRows) ? chatRows : []);
     } catch (e) {
       setErr(String(e?.message || e));
     }
   };
 
-  const onSubmitSolution = () => {
-    setErr("");
+  const onSubmitSolution = async () => {
     try {
+      setErr("");
       if (!attempt) throw new Error("Сначала начните кейс");
-      submitSolution(attempt.id, solution);
+      const a = await submitSolution(attempt.id, solution);
+      setAttempt(a || attempt);
     } catch (e) {
       setErr(String(e?.message || e));
     }
@@ -102,48 +180,46 @@ export default function CaseView() {
   return (
     <SiteShell>
       <div className="workspace">
-        {/* LEFT: case + solution */}
         <div className="workspaceMain col" style={{ gap: 12 }}>
           <div className="card">
             <div className="cardInner col" style={{ gap: 10 }}>
-              <div className="rowBetween" style={{ alignItems: "flex-start", flexWrap: "wrap" }}>
+              <div className="rowBetween caseHeaderRow" style={{ alignItems: "flex-start", flexWrap: "wrap" }}>
                 <div className="col" style={{ gap: 6, minWidth: 0 }}>
                   <div className="mutedSmall">
                     {levelLabel}
-                    {ev?.title ? ` · ${ev.title}` : ""}
+                    {eventData?.title ? ` · ${eventData.title}` : ""}
                   </div>
                   <div className="h1" style={{ fontSize: 26 }}>
-                    {c.title}
+                    {caseData.title}
                   </div>
                 </div>
 
-                <div className="row" style={{ flexWrap: "wrap" }}>
-                  <span className="chip chipMuted">Макс: {c.maxScore}</span>
+                <div className="caseHeaderBadges">
+                  <span className="chip chipMuted">Макс: {caseData.maxScore}</span>
                   {attempt ? (
                     <>
-                      <span className="chip chipMuted">Токены: {attempt.tokensSpent || 0}</span>
                       <span className={`chip ${attempt.status === "SCORED" ? "chipGood" : "chipWarn"}`}>
                         {attempt.status === "SCORED" ? "Завершён" : "В работе"}
                       </span>
-                      {attempt.score != null ? <span className="chip chipGood">Баллы: {attempt.score}</span> : null}
+                      {attempt.score != null ? (
+                        <span className="chip chipGood">Баллы: {attempt.score}</span>
+                      ) : null}
                     </>
                   ) : null}
                 </div>
               </div>
 
               <div className="muted" style={{ fontSize: 14, lineHeight: 1.6 }}>
-                {c.shortDescription}
+                {caseData.shortDescription}
               </div>
 
               {err ? <div className="toastErr">{err}</div> : null}
 
               {mgr ? (
                 <div className="col" style={{ gap: 10 }}>
-                  <div className="mutedSmall">
-                    Вы вошли как администратор/сотрудник. Решать кейсы нельзя — используйте «Проверка решений».
-                  </div>
+                  <div className="mutedSmall">Администратор не решает кейсы.</div>
                   <button className="btn btnPrimary" onClick={() => nav("/admin/attempts")}>
-                    Перейти в проверку решений
+                    Перейти в проверку
                   </button>
                 </div>
               ) : !attempt ? (
@@ -151,14 +227,15 @@ export default function CaseView() {
                   <button className="btn btnPrimary" onClick={onStart}>
                     Начать кейс
                   </button>
-                  <Link className="btn" to="/my-cases">К списку</Link>
+                  <Link className="btn" to="/my-cases">
+                    К списку
+                  </Link>
                 </div>
               ) : (
                 <div className="rowBetween" style={{ flexWrap: "wrap" }}>
-                  <div className="mutedSmall">
-                    Диалог справа. Заполняйте решение ниже и отправляйте, когда будете готовы.
-                  </div>
-                  <Link className="btn" to="/my-cases">К списку</Link>
+                  <Link className="btn" to="/my-cases">
+                    К списку
+                  </Link>
                 </div>
               )}
             </div>
@@ -168,10 +245,6 @@ export default function CaseView() {
             <div className="card">
               <div className="cardInner col" style={{ gap: 10 }}>
                 <div className="h2">Решение</div>
-                <div className="mutedSmall">
-                  Опишите план действий: кадровые, операционные, PR и финансовые меры.
-                </div>
-
                 <textarea
                   className="textarea"
                   value={solution}
@@ -183,7 +256,6 @@ export default function CaseView() {
                   <button className="btn btnPrimary" onClick={onSubmitSolution}>
                     Отправить решение
                   </button>
-                  <div className="mutedSmall">После отправки кейс будет закрыт для повторного прохождения.</div>
                 </div>
               </div>
             </div>
@@ -194,9 +266,7 @@ export default function CaseView() {
               <div className="cardInner col" style={{ gap: 10 }}>
                 <div className="rowBetween" style={{ flexWrap: "wrap" }}>
                   <div className="h2">Результат</div>
-                  <span className="chip chipGood">
-                    Баллы: {attempt.score}/{c.maxScore}
-                  </span>
+                  <span className="chip chipGood">Баллы: {attempt.score}/{caseData.maxScore}</span>
                 </div>
 
                 <div className="mutedSmall">Отправлено: {attempt.submittedAt || "—"}</div>
@@ -212,19 +282,20 @@ export default function CaseView() {
           ) : null}
         </div>
 
-        {/* RIGHT: chat */}
         <div className="workspaceChat">
           <div className="card">
             <div className="cardInner col" style={{ gap: 10 }}>
               <div className="rowBetween" style={{ flexWrap: "wrap" }}>
                 <div className="h2">Диалог с моделью</div>
-                {attempt ? <span className="chip chipMuted">tokens: {attempt.tokensSpent || 0}</span> : null}
+                {attempt ? (
+                  <Link className="btn" to={`/cases/${caseData.id}/chat`}>
+                    Открыть в разделе чата
+                  </Link>
+                ) : null}
               </div>
 
               {!attempt ? (
-                <div className="mutedSmall">
-                  Начните кейс, чтобы открыть диалог.
-                </div>
+                <div className="mutedSmall">Начните кейс, чтобы открыть диалог.</div>
               ) : (
                 <>
                   <div className="chatThread">
@@ -245,7 +316,7 @@ export default function CaseView() {
                         return (
                           <div key={m.id} className={rowCls}>
                             <div className={bubbleCls}>
-                              <div style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>
+                              <div className="bubbleText">{m.content}</div>
                               <div className="msgMeta">
                                 {roleLabel(m.role)} · {m.createdAt ? String(m.createdAt).slice(11, 16) : "—"}
                               </div>
@@ -267,10 +338,13 @@ export default function CaseView() {
                   />
 
                   <div className="rowBetween" style={{ flexWrap: "wrap" }}>
-                    <button className="btn btnPrimary" onClick={onSendChat} disabled={attempt.status === "SCORED"}>
+                    <button
+                      className="btn btnPrimary"
+                      onClick={onSendChat}
+                      disabled={attempt.status === "SCORED"}
+                    >
                       Отправить
                     </button>
-                    <div className="mutedSmall">Чем короче вопросы — тем лучше по токенам.</div>
                   </div>
                 </>
               )}

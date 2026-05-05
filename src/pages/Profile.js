@@ -2,24 +2,42 @@ import React, { useMemo, useState } from "react";
 import SiteShell from "../components/SiteShell";
 import { useAppStore } from "../store/AppStore";
 
-function roleLabel(role) {
-  if (role === "participant") return "Участник";
-  if (role === "bank_staff") return "Сотрудник банка";
-  if (role === "admin") return "Администратор";
-  return role || "—";
+function roleLabel(user) {
+  if (!user) return "—";
+  return user.role === "admin" ? "Администратор" : "Участник";
+}
+
+function fastTrackLabel(user) {
+  if (!user) return null;
+  if (user.fastTrack) return "Fast-track";
+  return null;
+}
+
+const FULLNAME_RE = /^[a-zA-Zа-яА-ЯёЁ][a-zA-Zа-яА-ЯёЁ\s.'-]{1,79}$/;
+
+function normalizeDigits(value) {
+  return String(value || "").replace(/[^\d]/g, "");
+}
+
+function normalizeAgeDisplay(value, min, max) {
+  const digits = normalizeDigits(value);
+  if (!digits) return "";
+  const n = Math.max(min, Math.min(max, Number(digits)));
+  return String(n);
 }
 
 export default function Profile() {
-  const { user, isManager, updateMyProfile } = useAppStore();
+  const { user, updateMyProfile, selfBecomeParticipant, isManager } = useAppStore();
   const mgr = isManager();
 
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const initial = useMemo(() => {
     return {
       fullName: user?.profile?.fullName || "",
-      age: user?.profile?.age || 0,
+      age: String(user?.profile?.age ?? ""),
       educationLevel: user?.profile?.educationLevel || "",
       city: user?.profile?.city || "",
       university: user?.profile?.university || "",
@@ -44,15 +62,42 @@ export default function Profile() {
     );
   }
 
-  const onSave = () => {
+  const minAge = user.role === "participant" ? 9 : 0;
+  const isDefaultAdmin = user.email === "admin";
+
+  const onSave = async () => {
     setErr("");
     setOk("");
+
+    const fn = String(fullName || "").trim();
+    if (!fn) return setErr("Имя пользователя обязательно");
+    if (!FULLNAME_RE.test(fn)) return setErr("Имя: только буквы, пробел, дефис, точка и апостроф");
+
+    const a = Number(age);
+    if (!Number.isFinite(a) || a < minAge || a > 120) {
+      return setErr(`Возраст должен быть от ${minAge} до 120`);
+    }
+
     try {
-      updateMyProfile({
-        profile: { fullName, age: Number(age || 0), educationLevel, city, university, major, skills }
+      setSaving(true);
+      await updateMyProfile({
+        profile: { fullName: fn, age: a, educationLevel, city, university, major, skills }
       });
       setOk("Сохранено");
       setTimeout(() => setOk(""), 1200);
+    } catch (e) {
+      setErr(String(e?.message || e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onBecomeParticipant = async () => {
+    setErr("");
+    setOk("");
+    try {
+      await selfBecomeParticipant();
+      setOk("Роль изменена на участник");
     } catch (e) {
       setErr(String(e?.message || e));
     }
@@ -67,16 +112,34 @@ export default function Profile() {
             <div className="mutedSmall">{user.email}</div>
           </div>
 
-          <div className="row" style={{ flexWrap: "wrap" }}>
-            <span className={`chip ${mgr ? "chipRed" : "chipMuted"}`}>{roleLabel(user.role)}</span>
-            <button className="btn btnPrimary" onClick={onSave}>
-              Сохранить
+          <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
+            <span className={`chip ${mgr ? "chipRed" : "chipMuted"}`}>{roleLabel(user)}</span>
+            {fastTrackLabel(user) && (
+              <span className="chip chipGreen">{fastTrackLabel(user)}</span>
+            )}
+            <button className="btn btnPrimary" onClick={onSave} disabled={saving}>
+              {saving ? "Сохранение..." : "Сохранить"}
             </button>
           </div>
         </div>
 
+        {user.role === "admin" && !isDefaultAdmin ? (
+          <div className="card" style={{ boxShadow: "none" }}>
+            <div className="cardInner rowBetween" style={{ flexWrap: "wrap" }}>
+              <div className="mutedSmall">Можно вернуть права участника.</div>
+              <button className="btn" onClick={onBecomeParticipant}>
+                Снять роль администратора
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         {err ? <div className="toastErr">{err}</div> : null}
-        {ok ? <div className="card" style={{ boxShadow: "none" }}><div className="cardInner mutedSmall">{ok}</div></div> : null}
+        {ok ? (
+          <div className="card" style={{ boxShadow: "none" }}>
+            <div className="cardInner mutedSmall">{ok}</div>
+          </div>
+        ) : null}
 
         <div className="grid2">
           <div className="card">
@@ -91,7 +154,13 @@ export default function Profile() {
               <div className="grid2">
                 <div className="col" style={{ gap: 6 }}>
                   <label className="mutedSmall">Возраст</label>
-                  <input className="input" type="number" value={age} onChange={(e) => setAge(Number(e.target.value))} />
+                  <input
+                    className="input"
+                    inputMode="numeric"
+                    value={age}
+                    onChange={(e) => setAge(normalizeDigits(e.target.value))}
+                    onBlur={() => setAge(normalizeAgeDisplay(age, minAge, 120))}
+                  />
                 </div>
                 <div className="col" style={{ gap: 6 }}>
                   <label className="mutedSmall">Город</label>

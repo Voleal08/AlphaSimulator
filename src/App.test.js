@@ -1,8 +1,12 @@
-import { render, screen } from '@testing-library/react';
-import App from './App';
+import { render, screen } from "@testing-library/react";
+import App from "./App";
+import { AppStoreProvider } from "./store/AppStore";
 
-test('renders learn react link', () => {
-  render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+test("renders app header", () => {
+  render(
+    <AppStoreProvider>
+      <App />
+    </AppStoreProvider>
+  );
+  expect(screen.getByRole("button", { name: /Войти/i })).toBeInTheDocument();
 });
